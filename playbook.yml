@@ -1,0 +1,83 @@
+---
+- name: Configure target hosts and deploy application
+  hosts: all
+  become: true
+
+  vars_files:
+    - group_vars/all.yml
+    - group_vars/all_vault.yml
+
+  tasks:
+    - name: Ensure CA certificates directory exists
+      file:
+        path: /usr/local/share/ca-certificates/custom
+        state: directory
+        mode: '0755'
+
+    - name: Copy custom CA certificates
+      copy:
+        src: "{{ item }}"
+        dest: /usr/local/share/ca-certificates/custom/
+      with_items:
+        - files/CA1.crt
+        - files/CA2.crt
+        - files/CA3.crt
+
+    - name: Update CA certificates
+      command: update-ca-certificates
+
+    - name: Check validity of CA certificates
+      command: openssl x509 -checkend 86400 -noout -in /usr/local/share/ca-certificates/custom/{{ item }}
+      with_items:
+        - CA1.crt
+        - CA2.crt
+        - CA3.crt
+
+    - name: Ensure deployment directory exists
+      file:
+        path: "{{ deployment_folder }}"
+        state: directory
+        mode: '0755'
+
+    - name: Create virtual environment
+      command: python3 -m venv {{ deployment_folder }}/venv
+
+    - name: Copy application wheel file
+      copy:
+        src: files/example-1.1.2-py3-none-any.whl
+        dest: "{{ deployment_folder }}/example-1.1.2-py3-none-any.whl"
+
+    - name: Install application in virtual environment
+      command: "{{ deployment_folder }}/venv/bin/pip install {{ deployment_folder }}/example-1.1.2-py3-none-any.whl"
+
+    - name: Ensure instance directory exists
+      file:
+        path: "{{ instance_path }}"
+        state: directory
+        mode: '0755'
+
+    - name: Copy configuration file
+      template:
+        src: files/config.py
+        dest: "{{ instance_path }}/config.py"
+
+    - name: Copy run.sh script
+      copy:
+        src: files/run.sh
+        dest: "{{ deployment_folder }}/run.sh"
+        mode: '0755'
+
+    - name: Create systemd service file
+      template:
+        src: templates/example.service.j2
+        dest: /etc/systemd/system/example.service
+
+    - name: Reload systemd
+      command: systemctl daemon-reload
+
+    - name: Enable and start example service
+      systemd:
+        name: example
+        enabled: true
+        state: started
+  

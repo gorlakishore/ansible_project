@@ -1,0 +1,14 @@
+[Unit]
+Description=Gunicorn instance to serve Flask application
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory={{ deployment_folder }}
+Environment="INSTANCE_PATH={{ instance_path }}"
+ExecStart={{ deployment_folder }}/run.sh
+
+[Install]
+WantedBy=multi-user.target
+

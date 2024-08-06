@@ -63,7 +63,7 @@
 
     - name: Copy run.sh script
       copy:
-        src: files/run.sh
+        src: files/run.sh.j2
         dest: "{{ deployment_folder }}/run.sh"
         mode: '0755'
 
